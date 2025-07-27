@@ -136,12 +136,12 @@ app.post('/api/assign-roles', async (req, res) => {
       phase: 'starting',
       currentDay: 0,
       currentNight: 0,
-      playerRoles: playerRoles,
-      playerAlive: playerAlive,
-      playerUsernames: playerUsernames,
+      playerRoles: JSON.stringify(playerRoles),
+      playerAlive: JSON.stringify(playerAlive),
+      playerUsernames: JSON.stringify(playerUsernames),
       eliminatedPlayers: [],
-      nightActions: {},
-      votes: {},
+      nightActions: JSON.stringify({}),
+      votes: JSON.stringify({}),
       phaseStartTime: new Date().toISOString(),
       phaseTimeRemaining: 0,
       winner: null,
@@ -203,7 +203,10 @@ app.post('/api/process-night-actions', async (req, res) => {
     );
 
     const gameState = gameStateDoc;
-    const { playerRoles, playerAlive, nightActions } = gameState;
+    const playerRoles = JSON.parse(gameState.playerRoles || '{}');
+    const playerAlive = JSON.parse(gameState.playerAlive || '{}');
+    const playerUsernames = JSON.parse(gameState.playerUsernames || '{}');
+    const nightActions = JSON.parse(gameState.nightActions || '{}');
 
     // Process mafia kill
     let mafiaKillTarget = null;
@@ -282,8 +285,8 @@ app.post('/api/process-night-actions', async (req, res) => {
       ...gameState,
       phase: winner ? 'gameOver' : 'day',
       currentDay: gameState.currentDay + 1,
-      playerAlive: playerAlive,
-      nightActions: {},
+      playerAlive: JSON.stringify(playerAlive),
+      nightActions: JSON.stringify({}),
       gameLog: gameLog,
       winner: winner
     };
@@ -330,7 +333,10 @@ app.post('/api/process-voting', async (req, res) => {
     );
 
     const gameState = gameStateDoc;
-    const { playerRoles, playerAlive, votes } = gameState;
+    const playerRoles = JSON.parse(gameState.playerRoles || '{}');
+    const playerAlive = JSON.parse(gameState.playerAlive || '{}');
+    const playerUsernames = JSON.parse(gameState.playerUsernames || '{}');
+    const votes = JSON.parse(gameState.votes || '{}');
 
     // Count votes
     const voteCounts = {};
@@ -408,8 +414,8 @@ app.post('/api/process-voting', async (req, res) => {
       ...gameState,
       phase: winner ? 'gameOver' : 'night',
       currentNight: gameState.currentNight + 1,
-      playerAlive: playerAlive,
-      votes: {},
+      playerAlive: JSON.stringify(playerAlive),
+      votes: JSON.stringify({}),
       gameLog: gameLog,
       winner: winner
     };
