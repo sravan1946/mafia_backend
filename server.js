@@ -31,6 +31,10 @@ function shuffleArray(array) {
 app.post('/api/assign-roles', async (req, res) => {
   try {
     const { roomId, playerIds, gameSettings } = req.body;
+    
+    console.log('Assign-roles called with roomId:', roomId);
+    console.log('Player IDs:', playerIds);
+    console.log('Game settings:', gameSettings);
 
     if (!roomId || !playerIds || !gameSettings) {
       return res.status(400).json({
@@ -128,6 +132,21 @@ app.post('/api/assign-roles', async (req, res) => {
       } catch (e) {
         playerUsernames[playerId] = 'Unknown Player';
       }
+    }
+
+    // Verify room exists before proceeding
+    let roomDoc;
+    try {
+      roomDoc = await databases.getDocument(
+        'mafia_game_db',
+        'rooms',
+        roomId
+      );
+    } catch (e) {
+      return res.status(404).json({
+        success: false,
+        error: `Room with ID ${roomId} not found in database`
+      });
     }
 
     // Create game state
