@@ -447,7 +447,7 @@ app.get('/api/health', (req, res) => {
 });
 
 // Start server
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Mafia Game Backend running on port ${PORT}`);
-  console.log(`📡 Health check: http://localhost:${PORT}/api/health`);
+  console.log(`📡 Health check: http://0.0.0.0:${PORT}/api/health`);
 }); 
