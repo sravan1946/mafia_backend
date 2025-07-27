@@ -299,15 +299,22 @@ app.post('/api/process-night-actions', async (req, res) => {
       winner = 'mafia';
     }
 
-    // Update game state
+    // Update game state (only include the fields we want to update)
     const updatedGameState = {
-      ...gameState,
+      roomId: gameState.roomId,
       phase: winner ? 'gameOver' : 'day',
       currentDay: gameState.currentDay + 1,
+      currentNight: gameState.currentNight,
+      playerRoles: gameState.playerRoles,
       playerAlive: JSON.stringify(playerAlive),
+      playerUsernames: gameState.playerUsernames,
+      eliminatedPlayers: gameState.eliminatedPlayers || [],
       nightActions: JSON.stringify({}),
-      gameLog: gameLog,
-      winner: winner
+      votes: gameState.votes,
+      phaseStartTime: gameState.phaseStartTime,
+      phaseTimeRemaining: winner ? 0 : 120, // 120 seconds for day phase
+      winner: winner,
+      gameLog: gameLog
     };
 
     await databases.updateDocument(
@@ -428,15 +435,22 @@ app.post('/api/process-voting', async (req, res) => {
       winner = 'mafia';
     }
 
-    // Update game state
+    // Update game state (only include the fields we want to update)
     const updatedGameState = {
-      ...gameState,
+      roomId: gameState.roomId,
       phase: winner ? 'gameOver' : 'night',
+      currentDay: gameState.currentDay,
       currentNight: gameState.currentNight + 1,
+      playerRoles: gameState.playerRoles,
       playerAlive: JSON.stringify(playerAlive),
+      playerUsernames: gameState.playerUsernames,
+      eliminatedPlayers: gameState.eliminatedPlayers || [],
+      nightActions: gameState.nightActions,
       votes: JSON.stringify({}),
-      gameLog: gameLog,
-      winner: winner
+      phaseStartTime: gameState.phaseStartTime,
+      phaseTimeRemaining: winner ? 0 : 45, // 45 seconds for night phase
+      winner: winner,
+      gameLog: gameLog
     };
 
     await databases.updateDocument(
