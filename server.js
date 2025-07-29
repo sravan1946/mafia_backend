@@ -254,7 +254,15 @@ app.post('/api/process-night-actions', async (req, res) => {
     }
 
     // Apply night actions
-    const gameLog = [...(JSON.parse(gameState.gameLog || '[]'))];
+    let gameLog = [];
+    try {
+      if (gameState.gameLog && gameState.gameLog !== '') {
+        gameLog = [...(JSON.parse(gameState.gameLog))];
+      }
+    } catch (error) {
+      console.log('Error parsing gameLog, starting with empty array:', error.message);
+      gameLog = [];
+    }
 
     // Check if mafia kill was blocked by doctor
     if (mafiaKillTarget && mafiaKillTarget !== doctorProtectionTarget) {
@@ -413,7 +421,15 @@ app.post('/api/process-voting', async (req, res) => {
       }
     });
 
-    const gameLog = [...(JSON.parse(gameState.gameLog || '[]'))];
+    let gameLog = [];
+    try {
+      if (gameState.gameLog && gameState.gameLog !== '') {
+        gameLog = [...(JSON.parse(gameState.gameLog))];
+      }
+    } catch (error) {
+      console.log('Error parsing gameLog, starting with empty array:', error.message);
+      gameLog = [];
+    }
 
     if (eliminatedPlayer && !tie) {
       playerAlive[eliminatedPlayer] = false;
