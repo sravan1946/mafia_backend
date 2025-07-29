@@ -254,15 +254,7 @@ app.post('/api/process-night-actions', async (req, res) => {
     }
 
     // Apply night actions
-    let gameLog = [];
-    try {
-      if (gameState.gameLog && gameState.gameLog !== '') {
-        gameLog = [...(JSON.parse(gameState.gameLog))];
-      }
-    } catch (error) {
-      console.log('Error parsing gameLog, starting with empty array:', error.message);
-      gameLog = [];
-    }
+    const gameLog = [...(gameState.gameLog || [])];
 
     // Check if mafia kill was blocked by doctor
     if (mafiaKillTarget && mafiaKillTarget !== doctorProtectionTarget) {
@@ -350,7 +342,7 @@ app.post('/api/process-night-actions', async (req, res) => {
       phaseStartTime: gameState.phaseStartTime,
       phaseTimeRemaining: winner ? 0 : 120, // 120 seconds for day phase
       winner: winner,
-      gameLog: JSON.stringify(gameLog)
+      gameLog: gameLog
     };
 
     await databases.updateDocument(
@@ -421,15 +413,7 @@ app.post('/api/process-voting', async (req, res) => {
       }
     });
 
-    let gameLog = [];
-    try {
-      if (gameState.gameLog && gameState.gameLog !== '') {
-        gameLog = [...(JSON.parse(gameState.gameLog))];
-      }
-    } catch (error) {
-      console.log('Error parsing gameLog, starting with empty array:', error.message);
-      gameLog = [];
-    }
+    const gameLog = [...(gameState.gameLog || [])];
 
     if (eliminatedPlayer && !tie) {
       playerAlive[eliminatedPlayer] = false;
@@ -494,7 +478,7 @@ app.post('/api/process-voting', async (req, res) => {
       phaseStartTime: gameState.phaseStartTime,
       phaseTimeRemaining: winner ? 0 : 45, // 45 seconds for night phase
       winner: winner,
-      gameLog: JSON.stringify(gameLog)
+      gameLog: gameLog
     };
 
     await databases.updateDocument(
