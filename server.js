@@ -205,26 +205,26 @@ async function processNightActions(gameStateId) {
     // Check if mafia kill was blocked by doctor
     if (mafiaKillTarget && mafiaKillTarget !== doctorProtectionTarget) {
       playerAlive[mafiaKillTarget] = false;
-      gameLog.push(`${gameState.playerUsernames[mafiaKillTarget]} was killed by the Mafia`);
+      gameLog.push(`${playerUsernames[mafiaKillTarget]} was killed by the Mafia`);
     } else if (mafiaKillTarget) {
-      gameLog.push(`${gameState.playerUsernames[mafiaKillTarget]} was protected by the Doctor`);
+      gameLog.push(`${playerUsernames[mafiaKillTarget]} was protected by the Doctor`);
     }
 
     // Apply witch actions
     if (witchSaveTarget && playerAlive[witchSaveTarget] === false) {
       playerAlive[witchSaveTarget] = true;
-      gameLog.push(`${gameState.playerUsernames[witchSaveTarget]} was saved by the Witch`);
+      gameLog.push(`${playerUsernames[witchSaveTarget]} was saved by the Witch`);
     }
 
     if (witchKillTarget && playerAlive[witchKillTarget]) {
       playerAlive[witchKillTarget] = false;
-      gameLog.push(`${gameState.playerUsernames[witchKillTarget]} was killed by the Witch`);
+      gameLog.push(`${playerUsernames[witchKillTarget]} was killed by the Witch`);
     }
 
-    // Process detective investigation
+    // Process detective investigation (private - only detective sees this)
     if (detectiveInvestigationTarget) {
       const targetRole = playerRoles[detectiveInvestigationTarget];
-      const targetUsername = gameState.playerUsernames[detectiveInvestigationTarget];
+      const targetUsername = playerUsernames[detectiveInvestigationTarget];
       
       // Find the detective who performed the investigation
       const detectiveId = Object.keys(playerRoles).find(id => 
@@ -232,8 +232,12 @@ async function processNightActions(gameStateId) {
       );
       
       if (detectiveId) {
-        const detectiveUsername = gameState.playerUsernames[detectiveId];
-        gameLog.push(`${detectiveUsername} investigated ${targetUsername} and found they are a ${targetRole}`);
+        const detectiveUsername = playerUsernames[detectiveId];
+        // Store detective investigation result privately (not in public gameLog)
+        // The detective will see this result in their personal game log
+        const detectiveResult = `${detectiveUsername} investigated ${targetUsername} and found they are a ${targetRole}`;
+        // For now, we'll add it to gameLog but mark it as detective-only
+        gameLog.push(`DETECTIVE_PRIVATE:${detectiveId}:${detectiveResult}`);
       }
     }
 
@@ -645,26 +649,26 @@ app.post('/api/process-night-actions', async (req, res) => {
     // Check if mafia kill was blocked by doctor
     if (mafiaKillTarget && mafiaKillTarget !== doctorProtectionTarget) {
       playerAlive[mafiaKillTarget] = false;
-      gameLog.push(`${gameState.playerUsernames[mafiaKillTarget]} was killed by the Mafia`);
+      gameLog.push(`${playerUsernames[mafiaKillTarget]} was killed by the Mafia`);
     } else if (mafiaKillTarget) {
-      gameLog.push(`${gameState.playerUsernames[mafiaKillTarget]} was protected by the Doctor`);
+      gameLog.push(`${playerUsernames[mafiaKillTarget]} was protected by the Doctor`);
     }
 
     // Apply witch actions
     if (witchSaveTarget && playerAlive[witchSaveTarget] === false) {
       playerAlive[witchSaveTarget] = true;
-      gameLog.push(`${gameState.playerUsernames[witchSaveTarget]} was saved by the Witch`);
+      gameLog.push(`${playerUsernames[witchSaveTarget]} was saved by the Witch`);
     }
 
     if (witchKillTarget && playerAlive[witchKillTarget]) {
       playerAlive[witchKillTarget] = false;
-      gameLog.push(`${gameState.playerUsernames[witchKillTarget]} was killed by the Witch`);
+      gameLog.push(`${playerUsernames[witchKillTarget]} was killed by the Witch`);
     }
 
-    // Process detective investigation
+    // Process detective investigation (private - only detective sees this)
     if (detectiveInvestigationTarget) {
       const targetRole = playerRoles[detectiveInvestigationTarget];
-      const targetUsername = gameState.playerUsernames[detectiveInvestigationTarget];
+      const targetUsername = playerUsernames[detectiveInvestigationTarget];
       
       // Find the detective who performed the investigation
       const detectiveId = Object.keys(playerRoles).find(id => 
@@ -672,8 +676,12 @@ app.post('/api/process-night-actions', async (req, res) => {
       );
       
       if (detectiveId) {
-        const detectiveUsername = gameState.playerUsernames[detectiveId];
-        gameLog.push(`${detectiveUsername} investigated ${targetUsername} and found they are a ${targetRole}`);
+        const detectiveUsername = playerUsernames[detectiveId];
+        // Store detective investigation result privately (not in public gameLog)
+        // The detective will see this result in their personal game log
+        const detectiveResult = `${detectiveUsername} investigated ${targetUsername} and found they are a ${targetRole}`;
+        // For now, we'll add it to gameLog but mark it as detective-only
+        gameLog.push(`DETECTIVE_PRIVATE:${detectiveId}:${detectiveResult}`);
       }
     }
 
@@ -781,7 +789,7 @@ app.post('/api/process-voting', async (req, res) => {
 
     if (eliminatedPlayer && !tie) {
       playerAlive[eliminatedPlayer] = false;
-      gameLog.push(`${gameState.playerUsernames[eliminatedPlayer]} was eliminated by vote`);
+      gameLog.push(`${playerUsernames[eliminatedPlayer]} was eliminated by vote`);
 
       // Check for jester win
       if (playerRoles[eliminatedPlayer] === 'jester') {
@@ -793,7 +801,7 @@ app.post('/api/process-voting', async (req, res) => {
         playerRoles[id] === 'executioner' && playerAlive[id]
       );
       if (executioner && gameState.executionerTarget === eliminatedPlayer) {
-        gameLog.push(`${gameState.playerUsernames[executioner]} (Executioner) wins!`);
+        gameLog.push(`${playerUsernames[executioner]} (Executioner) wins!`);
       }
     } else if (tie) {
       gameLog.push('Vote resulted in a tie - no one was eliminated');
