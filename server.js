@@ -203,7 +203,7 @@ async function processNightActions(gameStateId) {
       phaseStartTime: new Date().toISOString(),
       phaseTimeRemaining: gameSettings.discussionTime || 120,
       winner: gameState.winner,
-      gameLog: JSON.stringify(gameLog)
+      gameLog: gameLog
     };
     
     await databases.updateDocument(
