@@ -259,36 +259,20 @@ app.post('/api/process-night-actions', async (req, res) => {
     // Check if mafia kill was blocked by doctor
     if (mafiaKillTarget && mafiaKillTarget !== doctorProtectionTarget) {
       playerAlive[mafiaKillTarget] = false;
-      gameLog.push({
-        type: 'mafia_kill',
-        target: mafiaKillTarget,
-        message: `${gameState.playerUsernames[mafiaKillTarget]} was killed by the Mafia`
-      });
+      gameLog.push(`${gameState.playerUsernames[mafiaKillTarget]} was killed by the Mafia`);
     } else if (mafiaKillTarget) {
-      gameLog.push({
-        type: 'doctor_protect',
-        target: mafiaKillTarget,
-        message: `${gameState.playerUsernames[mafiaKillTarget]} was protected by the Doctor`
-      });
+      gameLog.push(`${gameState.playerUsernames[mafiaKillTarget]} was protected by the Doctor`);
     }
 
     // Apply witch actions
     if (witchSaveTarget && playerAlive[witchSaveTarget] === false) {
       playerAlive[witchSaveTarget] = true;
-      gameLog.push({
-        type: 'witch_save',
-        target: witchSaveTarget,
-        message: `${gameState.playerUsernames[witchSaveTarget]} was saved by the Witch`
-      });
+      gameLog.push(`${gameState.playerUsernames[witchSaveTarget]} was saved by the Witch`);
     }
 
     if (witchKillTarget && playerAlive[witchKillTarget]) {
       playerAlive[witchKillTarget] = false;
-      gameLog.push({
-        type: 'witch_kill',
-        target: witchKillTarget,
-        message: `${gameState.playerUsernames[witchKillTarget]} was killed by the Witch`
-      });
+      gameLog.push(`${gameState.playerUsernames[witchKillTarget]} was killed by the Witch`);
     }
 
     // Process detective investigation
@@ -303,13 +287,7 @@ app.post('/api/process-night-actions', async (req, res) => {
       
       if (detectiveId) {
         const detectiveUsername = gameState.playerUsernames[detectiveId];
-        gameLog.push({
-          type: 'detective_investigate',
-          detective: detectiveId,
-          target: detectiveInvestigationTarget,
-          targetRole: targetRole,
-          message: `${detectiveUsername} investigated ${targetUsername} and found they are a ${targetRole}`
-        });
+        gameLog.push(`${detectiveUsername} investigated ${targetUsername} and found they are a ${targetRole}`);
       }
     }
 
@@ -417,18 +395,11 @@ app.post('/api/process-voting', async (req, res) => {
 
     if (eliminatedPlayer && !tie) {
       playerAlive[eliminatedPlayer] = false;
-      gameLog.push({
-        type: 'elimination',
-        target: eliminatedPlayer,
-        message: `${gameState.playerUsernames[eliminatedPlayer]} was eliminated by vote`
-      });
+      gameLog.push(`${gameState.playerUsernames[eliminatedPlayer]} was eliminated by vote`);
 
       // Check for jester win
       if (playerRoles[eliminatedPlayer] === 'jester') {
-        gameLog.push({
-          type: 'jester_win',
-          message: 'The Jester wins by being eliminated!'
-        });
+        gameLog.push('The Jester wins by being eliminated!');
       }
 
       // Check for executioner win
@@ -436,17 +407,10 @@ app.post('/api/process-voting', async (req, res) => {
         playerRoles[id] === 'executioner' && playerAlive[id]
       );
       if (executioner && gameState.executionerTarget === eliminatedPlayer) {
-        gameLog.push({
-          type: 'executioner_win',
-          target: executioner,
-          message: `${gameState.playerUsernames[executioner]} (Executioner) wins!`
-        });
+        gameLog.push(`${gameState.playerUsernames[executioner]} (Executioner) wins!`);
       }
     } else if (tie) {
-      gameLog.push({
-        type: 'tie',
-        message: 'Vote resulted in a tie - no one was eliminated'
-      });
+      gameLog.push('Vote resulted in a tie - no one was eliminated');
     }
 
     // Check win conditions
