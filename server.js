@@ -3,6 +3,10 @@ const cors = require('cors');
 const { Client, Databases } = require('node-appwrite');
 require('dotenv').config();
 
+// Server-side timer management
+const gameTimers = new Map(); // gameStateId -> timer
+const gameTimerData = new Map(); // gameStateId -> { startTime, duration, phase }
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -25,6 +29,247 @@ function shuffleArray(array) {
     [array[i], array[j]] = [array[j], array[i]];
   }
   return array;
+}
+
+// Server-side timer functions
+function startGameTimer(gameStateId, duration, phase) {
+  // Clear existing timer
+  if (gameTimers.has(gameStateId)) {
+    clearTimeout(gameTimers.get(gameStateId));
+  }
+  
+  // Store timer data
+  gameTimerData.set(gameStateId, {
+    startTime: Date.now(),
+    duration: duration,
+    phase: phase
+  });
+  
+  // Start new timer
+  const timer = setTimeout(async () => {
+    console.log(`🎮 Server timer ended for game ${gameStateId}, phase ${phase}`);
+    await handleTimerEnd(gameStateId, phase);
+  }, duration * 1000);
+  
+  gameTimers.set(gameStateId, timer);
+  console.log(`🎮 Started server timer for game ${gameStateId}, phase ${phase}, duration ${duration}s`);
+}
+
+function stopGameTimer(gameStateId) {
+  if (gameTimers.has(gameStateId)) {
+    clearTimeout(gameTimers.get(gameStateId));
+    gameTimers.delete(gameStateId);
+    gameTimerData.delete(gameStateId);
+    console.log(`🎮 Stopped server timer for game ${gameStateId}`);
+  }
+}
+
+async function handleTimerEnd(gameStateId, phase) {
+  try {
+    // Get current game state
+    const gameStateDoc = await databases.getDocument(
+      'mafia_game_db',
+      'game_states',
+      gameStateId
+    );
+    
+    const gameState = gameStateDoc;
+    
+    // Get game settings from room
+    const roomDoc = await databases.getDocument(
+      'mafia_game_db',
+      'rooms',
+      gameState.roomId
+    );
+    const gameSettings = JSON.parse(roomDoc.gameSettings || '{}');
+    
+    // Process based on phase
+    if (phase === 'starting') {
+      // Transition to night phase
+      const updatedGameState = {
+        roomId: gameState.roomId,
+        phase: 'night',
+        currentDay: gameState.currentDay,
+        currentNight: 1,
+        playerRoles: gameState.playerRoles,
+        playerAlive: gameState.playerAlive,
+        playerUsernames: gameState.playerUsernames,
+        eliminatedPlayers: gameState.eliminatedPlayers || [],
+        nightActions: gameState.nightActions,
+        votes: gameState.votes,
+        phaseStartTime: new Date().toISOString(),
+        phaseTimeRemaining: gameSettings.nightTime || 45,
+        winner: gameState.winner,
+        gameLog: gameState.gameLog,
+        gameSettings: gameState.gameSettings
+      };
+      
+      await databases.updateDocument(
+        'mafia_game_db',
+        'game_states',
+        gameStateId,
+        updatedGameState
+      );
+      
+      // Start night timer using game settings
+      startGameTimer(gameStateId, gameSettings.nightTime || 45, 'night');
+      
+    } else if (phase === 'night') {
+      // Process night actions and transition to day
+      await processNightActions(gameStateId);
+      
+    } else if (phase === 'day') {
+      // Transition to voting phase
+      const updatedGameState = {
+        roomId: gameState.roomId,
+        phase: 'voting',
+        currentDay: gameState.currentDay,
+        currentNight: gameState.currentNight,
+        playerRoles: gameState.playerRoles,
+        playerAlive: gameState.playerAlive,
+        playerUsernames: gameState.playerUsernames,
+        eliminatedPlayers: gameState.eliminatedPlayers || [],
+        nightActions: gameState.nightActions,
+        votes: gameState.votes,
+        phaseStartTime: new Date().toISOString(),
+        phaseTimeRemaining: gameSettings.votingTime || 60,
+        winner: gameState.winner,
+        gameLog: gameState.gameLog,
+        gameSettings: gameState.gameSettings
+      };
+      
+      await databases.updateDocument(
+        'mafia_game_db',
+        'game_states',
+        gameStateId,
+        updatedGameState
+      );
+      
+      // Start voting timer using game settings
+      startGameTimer(gameStateId, gameSettings.votingTime || 60, 'voting');
+      
+    } else if (phase === 'voting') {
+      // Process voting and transition to night
+      await processVoting(gameStateId);
+    }
+    
+  } catch (error) {
+    console.error('Error handling timer end:', error);
+  }
+}
+
+async function processNightActions(gameStateId) {
+  // This will be implemented by calling the existing process-night-actions logic
+  // For now, we'll just transition to day phase
+  try {
+    const gameStateDoc = await databases.getDocument(
+      'mafia_game_db',
+      'game_states',
+      gameStateId
+    );
+    
+    const gameState = gameStateDoc;
+    
+    // Get game settings from room
+    const roomDoc = await databases.getDocument(
+      'mafia_game_db',
+      'rooms',
+      gameState.roomId
+    );
+    const gameSettings = JSON.parse(roomDoc.gameSettings || '{}');
+    const playerRoles = JSON.parse(gameState.playerRoles || '{}');
+    const playerAlive = JSON.parse(gameState.playerAlive || '{}');
+    const playerUsernames = JSON.parse(gameState.playerUsernames || '{}');
+    const nightActions = JSON.parse(gameState.nightActions || '{}');
+    
+    // Process night actions (simplified version)
+    const gameLog = [...(gameState.gameLog || [])];
+    
+    // Apply night actions logic here...
+    // (This would include the existing night action processing logic)
+    
+    const updatedGameState = {
+      roomId: gameState.roomId,
+      phase: 'day',
+      currentDay: gameState.currentDay + 1,
+      currentNight: gameState.currentNight,
+      playerRoles: gameState.playerRoles,
+      playerAlive: JSON.stringify(playerAlive),
+      playerUsernames: gameState.playerUsernames,
+      eliminatedPlayers: gameState.eliminatedPlayers || [],
+      nightActions: JSON.stringify({}),
+      votes: gameState.votes,
+      phaseStartTime: new Date().toISOString(),
+      phaseTimeRemaining: gameSettings.discussionTime || 120,
+      winner: gameState.winner,
+      gameLog: JSON.stringify(gameLog)
+    };
+    
+    await databases.updateDocument(
+      'mafia_game_db',
+      'game_states',
+      gameStateId,
+      updatedGameState
+    );
+    
+    // Start day timer using game settings
+    startGameTimer(gameStateId, gameSettings.discussionTime || 120, 'day');
+    
+  } catch (error) {
+    console.error('Error processing night actions:', error);
+  }
+}
+
+async function processVoting(gameStateId) {
+  // This will be implemented by calling the existing process-voting logic
+  // For now, we'll just transition to night phase
+  try {
+    const gameStateDoc = await databases.getDocument(
+      'mafia_game_db',
+      'game_states',
+      gameStateId
+    );
+    
+    const gameState = gameStateDoc;
+    
+    // Get game settings from room
+    const roomDoc = await databases.getDocument(
+      'mafia_game_db',
+      'rooms',
+      gameState.roomId
+    );
+    const gameSettings = JSON.parse(roomDoc.gameSettings || '{}');
+    
+    const updatedGameState = {
+      roomId: gameState.roomId,
+      phase: 'night',
+      currentDay: gameState.currentDay,
+      currentNight: gameState.currentNight + 1,
+      playerRoles: gameState.playerRoles,
+      playerAlive: gameState.playerAlive,
+      playerUsernames: gameState.playerUsernames,
+      eliminatedPlayers: gameState.eliminatedPlayers || [],
+      nightActions: gameState.nightActions,
+      votes: JSON.stringify({}),
+      phaseStartTime: new Date().toISOString(),
+      phaseTimeRemaining: gameSettings.nightTime || 45,
+      winner: gameState.winner,
+      gameLog: gameState.gameLog
+    };
+    
+    await databases.updateDocument(
+      'mafia_game_db',
+      'game_states',
+      gameStateId,
+      updatedGameState
+    );
+    
+    // Start night timer using game settings
+    startGameTimer(gameStateId, gameSettings.nightTime || 45, 'night');
+    
+  } catch (error) {
+    console.error('Error processing voting:', error);
+  }
 }
 
 // 1. Assign Roles Endpoint
@@ -185,6 +430,10 @@ app.post('/api/assign-roles', async (req, res) => {
         gameStateId: gameStateDoc.$id
       }
     );
+
+    // Start server-side timer for starting phase using game settings
+    const startingTime = gameSettings.selectionTime || 15;
+    startGameTimer(gameStateDoc.$id, startingTime, 'starting');
 
     res.json({
       success: true,
