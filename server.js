@@ -254,7 +254,7 @@ app.post('/api/process-night-actions', async (req, res) => {
     }
 
     // Apply night actions
-    const gameLog = [...(gameState.gameLog || [])];
+    const gameLog = [...(JSON.parse(gameState.gameLog || '[]'))];
 
     // Check if mafia kill was blocked by doctor
     if (mafiaKillTarget && mafiaKillTarget !== doctorProtectionTarget) {
@@ -342,7 +342,7 @@ app.post('/api/process-night-actions', async (req, res) => {
       phaseStartTime: gameState.phaseStartTime,
       phaseTimeRemaining: winner ? 0 : 120, // 120 seconds for day phase
       winner: winner,
-      gameLog: gameLog
+      gameLog: JSON.stringify(gameLog)
     };
 
     await databases.updateDocument(
@@ -413,7 +413,7 @@ app.post('/api/process-voting', async (req, res) => {
       }
     });
 
-    const gameLog = [...(gameState.gameLog || [])];
+    const gameLog = [...(JSON.parse(gameState.gameLog || '[]'))];
 
     if (eliminatedPlayer && !tie) {
       playerAlive[eliminatedPlayer] = false;
@@ -478,7 +478,7 @@ app.post('/api/process-voting', async (req, res) => {
       phaseStartTime: gameState.phaseStartTime,
       phaseTimeRemaining: winner ? 0 : 45, // 45 seconds for night phase
       winner: winner,
-      gameLog: gameLog
+      gameLog: JSON.stringify(gameLog)
     };
 
     await databases.updateDocument(
