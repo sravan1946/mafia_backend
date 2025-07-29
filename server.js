@@ -45,7 +45,7 @@ function startGameTimer(gameStateId, duration, phase) {
     phase: phase
   });
   
-  // Start new timer
+  // Start phase end timer
   const timer = setTimeout(async () => {
     console.log(`🎮 Server timer ended for game ${gameStateId}, phase ${phase}`);
     await handleTimerEnd(gameStateId, phase);
@@ -60,8 +60,9 @@ function stopGameTimer(gameStateId) {
     clearTimeout(gameTimers.get(gameStateId));
     gameTimers.delete(gameStateId);
     gameTimerData.delete(gameStateId);
-    console.log(`🎮 Stopped server timer for game ${gameStateId}`);
   }
+  
+  console.log(`🎮 Stopped server timer for game ${gameStateId}`);
 }
 
 async function handleTimerEnd(gameStateId, phase) {
@@ -272,6 +273,70 @@ async function processVoting(gameStateId) {
   }
 }
 
+// 0. Get Timer Remaining Endpoint
+app.get('/api/timer-remaining/:gameStateId', async (req, res) => {
+  try {
+    const { gameStateId } = req.params;
+    
+    // Get current game state
+    const gameStateDoc = await databases.getDocument(
+      'mafia_game_db',
+      'game_states',
+      gameStateId
+    );
+    
+    const gameState = gameStateDoc;
+    const phaseStartTime = new Date(gameState.phaseStartTime);
+    const currentTime = new Date();
+    
+    // Get game settings from room
+    const roomDoc = await databases.getDocument(
+      'mafia_game_db',
+      'rooms',
+      gameState.roomId
+    );
+    const gameSettings = JSON.parse(roomDoc.gameSettings || '{}');
+    
+    // Calculate phase duration based on current phase
+    let phaseDuration;
+    switch (gameState.phase) {
+      case 'starting':
+        phaseDuration = gameSettings.selectionTime || 15;
+        break;
+      case 'night':
+        phaseDuration = gameSettings.nightTime || 45;
+        break;
+      case 'day':
+        phaseDuration = gameSettings.discussionTime || 120;
+        break;
+      case 'voting':
+        phaseDuration = gameSettings.votingTime || 60;
+        break;
+      default:
+        phaseDuration = 0;
+    }
+    
+    // Calculate remaining time
+    const elapsedSeconds = Math.floor((currentTime - phaseStartTime) / 1000);
+    const remainingSeconds = Math.max(0, phaseDuration - elapsedSeconds);
+    
+    res.json({
+      success: true,
+      remainingSeconds: remainingSeconds,
+      phase: gameState.phase,
+      phaseDuration: phaseDuration,
+      phaseStartTime: gameState.phaseStartTime
+    });
+    
+  } catch (error) {
+    console.error('Error getting timer remaining:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get timer remaining'
+    });
+  }
+});
+
 // 1. Assign Roles Endpoint
 app.post('/api/assign-roles', async (req, res) => {
   try {
@@ -407,7 +472,7 @@ app.post('/api/assign-roles', async (req, res) => {
       nightActions: JSON.stringify({}),
       votes: JSON.stringify({}),
       phaseStartTime: new Date().toISOString(),
-      phaseTimeRemaining: 0,
+      phaseTimeRemaining: gameSettings.selectionTime || 15,
       winner: null,
       gameLog: []
     };
