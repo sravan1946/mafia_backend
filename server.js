@@ -160,17 +160,97 @@ async function handleTimerEnd(gameStateId, phase) {
 }
 
 async function processNightActions(gameStateId) {
-  // This will be implemented by calling the existing process-night-actions logic
-  // For now, we'll just transition to day phase
   try {
     const gameStateDoc = await databases.getDocument(
       'mafia_game_db',
       'game_states',
       gameStateId
     );
-    
+
     const gameState = gameStateDoc;
-    
+    const playerRoles = JSON.parse(gameState.playerRoles || '{}');
+    const playerAlive = JSON.parse(gameState.playerAlive || '{}');
+    const playerUsernames = JSON.parse(gameState.playerUsernames || '{}');
+    const nightActions = JSON.parse(gameState.nightActions || '{}');
+
+    // Process mafia kill
+    let mafiaKillTarget = null;
+    if (nightActions.mafia_kill) {
+      mafiaKillTarget = nightActions.mafia_kill.target;
+    }
+
+    // Process doctor protection
+    let doctorProtectionTarget = null;
+    if (nightActions.doctor_protect) {
+      doctorProtectionTarget = nightActions.doctor_protect.target;
+    }
+
+    // Process witch actions
+    let witchSaveTarget = null;
+    let witchKillTarget = null;
+    if (nightActions.witch_action) {
+      witchSaveTarget = nightActions.witch_action.saveTarget;
+      witchKillTarget = nightActions.witch_action.killTarget;
+    }
+
+    // Process detective investigation
+    let detectiveInvestigationTarget = null;
+    if (nightActions.detective_investigate) {
+      detectiveInvestigationTarget = nightActions.detective_investigate.target;
+    }
+
+    // Apply night actions
+    const gameLog = [...(gameState.gameLog || [])];
+
+    // Check if mafia kill was blocked by doctor
+    if (mafiaKillTarget && mafiaKillTarget !== doctorProtectionTarget) {
+      playerAlive[mafiaKillTarget] = false;
+      gameLog.push(`${gameState.playerUsernames[mafiaKillTarget]} was killed by the Mafia`);
+    } else if (mafiaKillTarget) {
+      gameLog.push(`${gameState.playerUsernames[mafiaKillTarget]} was protected by the Doctor`);
+    }
+
+    // Apply witch actions
+    if (witchSaveTarget && playerAlive[witchSaveTarget] === false) {
+      playerAlive[witchSaveTarget] = true;
+      gameLog.push(`${gameState.playerUsernames[witchSaveTarget]} was saved by the Witch`);
+    }
+
+    if (witchKillTarget && playerAlive[witchKillTarget]) {
+      playerAlive[witchKillTarget] = false;
+      gameLog.push(`${gameState.playerUsernames[witchKillTarget]} was killed by the Witch`);
+    }
+
+    // Process detective investigation
+    if (detectiveInvestigationTarget) {
+      const targetRole = playerRoles[detectiveInvestigationTarget];
+      const targetUsername = gameState.playerUsernames[detectiveInvestigationTarget];
+      
+      // Find the detective who performed the investigation
+      const detectiveId = Object.keys(playerRoles).find(id => 
+        playerRoles[id] === 'detective' && playerAlive[id]
+      );
+      
+      if (detectiveId) {
+        const detectiveUsername = gameState.playerUsernames[detectiveId];
+        gameLog.push(`${detectiveUsername} investigated ${targetUsername} and found they are a ${targetRole}`);
+      }
+    }
+
+    // Check win conditions
+    const alivePlayers = Object.keys(playerAlive).filter(id => playerAlive[id]);
+    const aliveMafia = alivePlayers.filter(id => playerRoles[id] === 'mafia');
+    const aliveVillagers = alivePlayers.filter(id => 
+      ['doctor', 'detective', 'villager'].includes(playerRoles[id])
+    );
+
+    let winner = null;
+    if (aliveMafia.length === 0) {
+      winner = 'villagers';
+    } else if (aliveMafia.length >= aliveVillagers.length) {
+      winner = 'mafia';
+    }
+
     // Get game settings from room
     const roomDoc = await databases.getDocument(
       'mafia_game_db',
@@ -178,20 +258,10 @@ async function processNightActions(gameStateId) {
       gameState.roomId
     );
     const gameSettings = JSON.parse(roomDoc.gameSettings || '{}');
-    const playerRoles = JSON.parse(gameState.playerRoles || '{}');
-    const playerAlive = JSON.parse(gameState.playerAlive || '{}');
-    const playerUsernames = JSON.parse(gameState.playerUsernames || '{}');
-    const nightActions = JSON.parse(gameState.nightActions || '{}');
-    
-    // Process night actions (simplified version)
-    const gameLog = [...(gameState.gameLog || [])];
-    
-    // Apply night actions logic here...
-    // (This would include the existing night action processing logic)
-    
+
     const updatedGameState = {
       roomId: gameState.roomId,
-      phase: 'day',
+      phase: winner ? 'gameOver' : 'day',
       currentDay: gameState.currentDay + 1,
       currentNight: gameState.currentNight,
       playerRoles: gameState.playerRoles,
@@ -201,20 +271,22 @@ async function processNightActions(gameStateId) {
       nightActions: JSON.stringify({}),
       votes: gameState.votes,
       phaseStartTime: new Date().toISOString(),
-      phaseTimeRemaining: gameSettings.discussionTime || 120,
-      winner: gameState.winner,
+      phaseTimeRemaining: winner ? 0 : (gameSettings.discussionTime || 120),
+      winner: winner,
       gameLog: gameLog
     };
-    
+
     await databases.updateDocument(
       'mafia_game_db',
       'game_states',
       gameStateId,
       updatedGameState
     );
-    
-    // Start day timer using game settings
-    startGameTimer(gameStateId, gameSettings.discussionTime || 120, 'day');
+
+    // Start day timer using game settings (if not game over)
+    if (!winner) {
+      startGameTimer(gameStateId, gameSettings.discussionTime || 120, 'day');
+    }
     
   } catch (error) {
     console.error('Error processing night actions:', error);
