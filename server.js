@@ -247,6 +247,12 @@ app.post('/api/process-night-actions', async (req, res) => {
       witchKillTarget = nightActions.witch_action.killTarget;
     }
 
+    // Process detective investigation
+    let detectiveInvestigationTarget = null;
+    if (nightActions.detective_investigate) {
+      detectiveInvestigationTarget = nightActions.detective_investigate.target;
+    }
+
     // Apply night actions
     const gameLog = [...(gameState.gameLog || [])];
 
@@ -283,6 +289,28 @@ app.post('/api/process-night-actions', async (req, res) => {
         target: witchKillTarget,
         message: `${gameState.playerUsernames[witchKillTarget]} was killed by the Witch`
       });
+    }
+
+    // Process detective investigation
+    if (detectiveInvestigationTarget) {
+      const targetRole = playerRoles[detectiveInvestigationTarget];
+      const targetUsername = gameState.playerUsernames[detectiveInvestigationTarget];
+      
+      // Find the detective who performed the investigation
+      const detectiveId = Object.keys(playerRoles).find(id => 
+        playerRoles[id] === 'detective' && playerAlive[id]
+      );
+      
+      if (detectiveId) {
+        const detectiveUsername = gameState.playerUsernames[detectiveId];
+        gameLog.push({
+          type: 'detective_investigate',
+          detective: detectiveId,
+          target: detectiveInvestigationTarget,
+          targetRole: targetRole,
+          message: `${detectiveUsername} investigated ${targetUsername} and found they are a ${targetRole}`
+        });
+      }
     }
 
     // Check win conditions
