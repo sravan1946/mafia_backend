@@ -84,14 +84,14 @@ async function assignRoles(gameStateId, gameSettings) {
       currentNight: 1,
       playerRoles: JSON.stringify(playerRoles),
       playerAlive: JSON.stringify(playerAlive),
-      playerUsernames: gameState.playerUsernames,
-      eliminatedPlayers: gameState.eliminatedPlayers || [],
+      playerUsernames: JSON.stringify(JSON.parse(gameState.playerUsernames || '{}')), // Ensure it's JSON string
+      eliminatedPlayers: gameState.eliminatedPlayers || [], // Array of strings
       nightActions: JSON.stringify({}),
-      votes: gameState.votes,
+      votes: JSON.stringify(JSON.parse(gameState.votes || '{}')), // Ensure it's JSON string
       phaseStartTime: new Date().toISOString(),
       phaseTimeRemaining: roomGameSettings.startingTime || 15,
       winner: null,
-      gameLog: []
+      gameLog: gameState.gameLog || [] // Array of strings
     };
 
     await databases.updateDocument(
@@ -229,16 +229,16 @@ async function processNightActions(gameStateId) {
       phase: winner ? 'gameOver' : 'day',
       currentDay: gameState.currentDay + 1,
       currentNight: gameState.currentNight,
-      playerRoles: gameState.playerRoles,
+      playerRoles: gameState.playerRoles, // Already JSON string
       playerAlive: JSON.stringify(playerAlive),
-      playerUsernames: gameState.playerUsernames,
-      eliminatedPlayers: gameState.eliminatedPlayers || [],
+      playerUsernames: gameState.playerUsernames, // Already JSON string
+      eliminatedPlayers: gameState.eliminatedPlayers || [], // Array of strings
       nightActions: JSON.stringify({}),
-      votes: gameState.votes,
+      votes: gameState.votes, // Already JSON string
       phaseStartTime: new Date().toISOString(),
       phaseTimeRemaining: winner ? 0 : (gameSettings.discussionTime || 120),
       winner: winner,
-      gameLog: gameLog
+      gameLog: gameLog // Array of strings
     };
 
     await databases.updateDocument(
@@ -340,16 +340,16 @@ async function processVoting(gameStateId) {
       phase: winner ? 'gameOver' : 'night',
       currentDay: gameState.currentDay,
       currentNight: gameState.currentNight + 1,
-      playerRoles: gameState.playerRoles,
+      playerRoles: gameState.playerRoles, // Already JSON string
       playerAlive: JSON.stringify(playerAlive),
-      playerUsernames: gameState.playerUsernames,
-      eliminatedPlayers: gameState.eliminatedPlayers || [],
-      nightActions: gameState.nightActions,
+      playerUsernames: gameState.playerUsernames, // Already JSON string
+      eliminatedPlayers: gameState.eliminatedPlayers || [], // Array of strings
+      nightActions: gameState.nightActions, // Already JSON string
       votes: JSON.stringify({}),
       phaseStartTime: gameState.phaseStartTime,
       phaseTimeRemaining: winner ? 0 : 45, // 45 seconds for night phase
       winner: winner,
-      gameLog: gameLog
+      gameLog: gameLog // Array of strings
     };
 
     await databases.updateDocument(

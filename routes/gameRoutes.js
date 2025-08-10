@@ -46,13 +46,13 @@ router.post('/assign-roles', async (req, res) => {
         playerRoles: JSON.stringify({}),
         playerAlive: JSON.stringify({}),
         playerUsernames: JSON.stringify(playerUsernames),
-        eliminatedPlayers: JSON.stringify([]),
+        eliminatedPlayers: [], // Array of strings, not JSON string
         nightActions: JSON.stringify({}),
         votes: JSON.stringify({}),
         phaseStartTime: new Date().toISOString(),
         phaseTimeRemaining: gameSettings.startingTime || 15,
         winner: null,
-        gameLog: JSON.stringify([])
+        gameLog: [] // Array of strings, not JSON string
       };
       
       // Create the game state document
