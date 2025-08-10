@@ -11,17 +11,67 @@ const router = express.Router();
  */
 router.post('/assign-roles', async (req, res) => {
   try {
-    const { gameStateId } = req.body;
+    const { gameStateId, roomId, playerIds, gameSettings } = req.body;
     
+    let targetGameStateId = gameStateId;
+    
+    // If no gameStateId provided, create a new game state
     if (!gameStateId) {
-      return res.status(400).json({ error: 'Game state ID is required' });
+      if (!roomId || !playerIds || !gameSettings) {
+        return res.status(400).json({ error: 'Either gameStateId or (roomId, playerIds, gameSettings) are required' });
+      }
+      
+      console.log('🎮 Creating new game state for room:', roomId);
+      
+      // Get room information
+      const roomDoc = await databases.getDocument(
+        DATABASE_ID,
+        ROOMS_COLLECTION_ID,
+        roomId
+      );
+      
+      // Create player usernames map
+      const playerUsernames = {};
+      for (const playerId of playerIds) {
+        // For now, use player ID as username - this should be enhanced to get actual usernames
+        playerUsernames[playerId] = `Player ${playerId}`;
+      }
+      
+      // Create initial game state
+      const initialGameState = {
+        roomId: roomId,
+        phase: 'starting',
+        currentDay: 1,
+        currentNight: 1,
+        playerRoles: JSON.stringify({}),
+        playerAlive: JSON.stringify({}),
+        playerUsernames: JSON.stringify(playerUsernames),
+        eliminatedPlayers: JSON.stringify([]),
+        nightActions: JSON.stringify({}),
+        votes: JSON.stringify({}),
+        phaseStartTime: new Date().toISOString(),
+        phaseTimeRemaining: gameSettings.startingTime || 15,
+        winner: null,
+        gameLog: JSON.stringify([])
+      };
+      
+      // Create the game state document
+      const newGameStateDoc = await databases.createDocument(
+        DATABASE_ID,
+        GAME_STATES_COLLECTION_ID,
+        'unique()', // Auto-generate ID
+        initialGameState
+      );
+      
+      targetGameStateId = newGameStateDoc.$id;
+      console.log('🎮 Created new game state with ID:', targetGameStateId);
     }
 
     // Get game state
     const gameStateDoc = await databases.getDocument(
       DATABASE_ID,
       GAME_STATES_COLLECTION_ID,
-      gameStateId
+      targetGameStateId
     );
 
     // Get game settings from room
@@ -30,12 +80,12 @@ router.post('/assign-roles', async (req, res) => {
       ROOMS_COLLECTION_ID,
       gameStateDoc.roomId
     );
-    const gameSettings = JSON.parse(roomDoc.gameSettings || '{}');
+    const roomGameSettings = JSON.parse(roomDoc.gameSettings || '{}');
 
-    console.log('🎮 Assigning roles for game:', gameStateId);
-    console.log('🎮 Game settings:', gameSettings);
+    console.log('🎮 Assigning roles for game:', targetGameStateId);
+    console.log('🎮 Game settings:', roomGameSettings);
 
-    const result = await assignRoles(gameStateId, gameSettings);
+    const result = await assignRoles(targetGameStateId, roomGameSettings);
     
     res.json(result);
   } catch (error) {
