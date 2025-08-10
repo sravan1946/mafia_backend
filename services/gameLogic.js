@@ -9,6 +9,8 @@ const { shuffleArray, startGameTimer } = require('../utils/gameHelpers');
  */
 async function assignRoles(gameStateId, gameSettings) {
   try {
+    console.log('🎮 Assign roles called with gameStateId:', gameStateId);
+    console.log('🎮 Game settings parameter:', gameSettings);
     const gameStateDoc = await databases.getDocument(
       DATABASE_ID,
       GAME_STATES_COLLECTION_ID,
@@ -16,7 +18,13 @@ async function assignRoles(gameStateId, gameSettings) {
     );
 
     const gameState = gameStateDoc;
-    const playerIds = Object.keys(gameState.playerUsernames);
+    const playerUsernames = JSON.parse(gameState.playerUsernames || '{}');
+    const playerIds = Object.keys(playerUsernames);
+    
+    console.log('🎮 Game state playerUsernames field:', gameState.playerUsernames);
+    console.log('🎮 Parsed playerUsernames object:', playerUsernames);
+    console.log('🎮 Player IDs array:', playerIds);
+    console.log('🎮 Player IDs length:', playerIds.length);
     
     if (playerIds.length < 4) {
       throw new Error('Need at least 4 players to start the game');
@@ -59,7 +67,12 @@ async function assignRoles(gameStateId, gameSettings) {
     }
     
     // Shuffle roles and assign to players
+    console.log('🎮 Role assignment array:', roleAssignment);
+    console.log('🎮 Role assignment length:', roleAssignment.length);
+    
     const shuffledRoles = shuffleArray(roleAssignment);
+    console.log('🎮 Shuffled roles array:', shuffledRoles);
+    
     const playerRoles = {};
     const playerAlive = {};
     
@@ -74,8 +87,16 @@ async function assignRoles(gameStateId, gameSettings) {
       ROOMS_COLLECTION_ID,
       gameState.roomId
     );
+    console.log('🎮 Room document gameSettings field:', roomDoc.gameSettings);
     const roomGameSettings = JSON.parse(roomDoc.gameSettings || '{}');
+    console.log('🎮 Parsed room game settings:', roomGameSettings);
 
+    // Debug logging
+    console.log('🎮 Player roles object:', playerRoles);
+    console.log('🎮 Player roles JSON string:', JSON.stringify(playerRoles));
+    console.log('🎮 Player usernames from game state:', gameState.playerUsernames);
+    console.log('🎮 Parsed player usernames:', JSON.parse(gameState.playerUsernames || '{}'));
+    
     // Update game state
     const updatedGameState = {
       roomId: gameState.roomId,
@@ -89,20 +110,32 @@ async function assignRoles(gameStateId, gameSettings) {
       nightActions: JSON.stringify({}),
       votes: JSON.stringify(JSON.parse(gameState.votes || '{}')), // Ensure it's JSON string
       phaseStartTime: new Date().toISOString(),
-      phaseTimeRemaining: roomGameSettings.startingTime || 15,
+      phaseTimeRemaining: roomGameSettings.selectionTime || 15,
       winner: null,
       gameLog: gameState.gameLog || [] // Array of strings
     };
+    
+    console.log('🎮 Final updatedGameState object:', updatedGameState);
+    console.log('🎮 playerRoles field type:', typeof updatedGameState.playerRoles);
+    console.log('🎮 playerRoles field value:', updatedGameState.playerRoles);
 
+    console.log('🎮 About to call databases.updateDocument with:');
+    console.log('🎮 - DATABASE_ID:', DATABASE_ID);
+    console.log('🎮 - GAME_STATES_COLLECTION_ID:', GAME_STATES_COLLECTION_ID);
+    console.log('🎮 - gameStateId:', gameStateId);
+    console.log('🎮 - updatedGameState:', updatedGameState);
+    
     await databases.updateDocument(
       DATABASE_ID,
       GAME_STATES_COLLECTION_ID,
       gameStateId,
       updatedGameState
     );
+    
+    console.log('🎮 Successfully updated game state document');
 
     // Start the first timer
-    startGameTimer(gameStateId, roomGameSettings.startingTime || 15, 'starting');
+    startGameTimer(gameStateId, roomGameSettings.selectionTime || 15, 'starting');
 
     return {
       success: true,

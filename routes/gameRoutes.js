@@ -50,7 +50,7 @@ router.post('/assign-roles', async (req, res) => {
         nightActions: JSON.stringify({}),
         votes: JSON.stringify({}),
         phaseStartTime: new Date().toISOString(),
-        phaseTimeRemaining: gameSettings.startingTime || 15,
+        phaseTimeRemaining: gameSettings.selectionTime || 15,
         winner: null,
         gameLog: [] // Array of strings, not JSON string
       };
