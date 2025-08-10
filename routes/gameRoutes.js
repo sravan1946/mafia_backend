@@ -146,16 +146,62 @@ router.get('/timer-remaining/:gameStateId', async (req, res) => {
   try {
     const { gameStateId } = req.params;
     
-    const remaining = getTimerRemaining(gameStateId);
+    // Get current game state to calculate remaining time
+    const gameStateDoc = await databases.getDocument(
+      DATABASE_ID,
+      GAME_STATES_COLLECTION_ID,
+      gameStateId
+    );
     
-    if (remaining === null) {
-      return res.status(404).json({ error: 'No timer found for this game' });
+    const gameState = gameStateDoc;
+    const phaseStartTime = new Date(gameState.phaseStartTime);
+    const currentTime = new Date();
+    
+    // Get game settings from room
+    const roomDoc = await databases.getDocument(
+      DATABASE_ID,
+      ROOMS_COLLECTION_ID,
+      gameState.roomId
+    );
+    const gameSettings = JSON.parse(roomDoc.gameSettings || '{}');
+    
+    // Calculate phase duration based on current phase
+    let phaseDuration;
+    switch (gameState.phase) {
+      case 'starting':
+        phaseDuration = gameSettings.selectionTime || 15;
+        break;
+      case 'night':
+        phaseDuration = gameSettings.nightTime || 45;
+        break;
+      case 'day':
+        phaseDuration = gameSettings.discussionTime || 120;
+        break;
+      case 'voting':
+        phaseDuration = gameSettings.votingTime || 60;
+        break;
+      default:
+        phaseDuration = 0;
     }
     
-    res.json({ remainingSeconds: remaining });
+    // Calculate remaining time
+    const elapsedSeconds = Math.floor((currentTime - phaseStartTime) / 1000);
+    const remainingSeconds = Math.max(0, phaseDuration - elapsedSeconds);
+    
+    res.json({
+      success: true,
+      remainingSeconds: remainingSeconds,
+      phase: gameState.phase,
+      phaseDuration: phaseDuration,
+      phaseStartTime: gameState.phaseStartTime
+    });
+    
   } catch (error) {
     console.error('Error getting timer remaining:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get timer remaining'
+    });
   }
 });
 

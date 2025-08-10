@@ -9,8 +9,6 @@ const { shuffleArray, startGameTimer } = require('../utils/gameHelpers');
  */
 async function assignRoles(gameStateId, gameSettings) {
   try {
-    console.log('🎮 Assign roles called with gameStateId:', gameStateId);
-    console.log('🎮 Game settings parameter:', gameSettings);
     const gameStateDoc = await databases.getDocument(
       DATABASE_ID,
       GAME_STATES_COLLECTION_ID,
@@ -20,11 +18,6 @@ async function assignRoles(gameStateId, gameSettings) {
     const gameState = gameStateDoc;
     const playerUsernames = JSON.parse(gameState.playerUsernames || '{}');
     const playerIds = Object.keys(playerUsernames);
-    
-    console.log('🎮 Game state playerUsernames field:', gameState.playerUsernames);
-    console.log('🎮 Parsed playerUsernames object:', playerUsernames);
-    console.log('🎮 Player IDs array:', playerIds);
-    console.log('🎮 Player IDs length:', playerIds.length);
     
     if (playerIds.length < 4) {
       throw new Error('Need at least 4 players to start the game');
